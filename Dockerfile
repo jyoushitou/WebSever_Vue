@@ -9,7 +9,7 @@ WORKDIR /app
 
 # 复制依赖配置文件
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci && npm cache clean --force
 
 # 复制源代码并构建
 COPY . .
