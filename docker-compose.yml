@@ -1,0 +1,40 @@
+# ============================================================
+# docker-compose.yml — Vue 3 项目 Docker Compose 一键部署
+# 使用方法（Linux）：
+#   生产环境：docker compose up -d
+#   重新构建：docker compose up -d --build
+#   查看日志：docker compose logs -f
+#   停止服务：docker compose down
+# ============================================================
+
+services:
+  # ===== Vue 前端服务 =====
+  vue-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vue-app
+    ports:
+      - "80:80"          # 映射主机 80 端口到容器 80 端口
+    restart: unless-stopped
+    networks:
+      - app-network
+    # 如果后端在另一个容器中，取消注释并配置：
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"  # Linux 下访问宿主机
+
+  # ===== （可选）如果你有后端容器，可以在此添加 =====
+  # backend:
+  #   build:
+  #     context: ../cpp            # 后端项目路径
+  #     dockerfile: Dockerfile
+  #   container_name: backend
+  #   ports:
+  #     - "60906:60906"
+  #   restart: unless-stopped
+  #   networks:
+  #     - app-network
+
+networks:
+  app-network:
+    driver: bridge
