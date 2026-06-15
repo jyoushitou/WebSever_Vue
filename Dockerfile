@@ -3,20 +3,21 @@
 # ============================================================
 
 # ---------- 阶段 1：构建 ----------
-FROM node:20-alpine AS builder
+FROM docker.m.daocloud.io/library/node:20-alpine AS builder
 
 WORKDIR /app
 
 # 复制依赖配置文件
 COPY package*.json ./
-RUN npm ci && npm cache clean --force
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm ci && npm cache clean --force
 
 # 复制源代码并构建
 COPY . .
 RUN npm run build
 
 # ---------- 阶段 2：运行（Nginx） ----------
-FROM nginx:alpine
+FROM docker.m.daocloud.io/library/nginx:alpine
 
 # 设置时区
 RUN apk add --no-cache tzdata && \
