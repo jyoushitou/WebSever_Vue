@@ -1,16 +1,50 @@
+# ============================================================
+# .dockerignore — Docker 构建时忽略的文件/目录
+# ============================================================
+# 作用：类似 .gitignore，在 docker build 时过滤掉不需要的文件
+# 优点：
+#   1. 减小构建上下文体积，加快镜像上传速度
+#   2. 避免将敏感信息（如 .env）打包进镜像
+#   3. 防止 node_modules 被 COPY 进去（应该用 npm ci 重新安装）
+#
+# 注意：
+#   匹配规则与 .gitignore 基本相同，支持 * 通配符和 ! 取反
+# ============================================================
+
+# ===== 依赖目录（必须忽略！） =====
+# node_modules 应在 Dockerfile 中用 npm ci 重新安装
+# 宿主机的 node_modules 可能与容器环境不兼容
 node_modules
+
+# ===== 构建产物 =====
+# dist/ 是在 Docker 构建阶段生成的，不需要从宿主机复制
 dist
-.git
-.gitignore
-*.md
-.DS_Store
+
+# ===== 版本控制 =====
+.git                          # Git 元数据，不需要
+.gitignore                    # Git 忽略规则，容器内不需要
+
+# ===== 文档 =====
+*.md                          # Markdown 文档文件
+
+# ===== 系统文件 =====
+.DS_Store                     # macOS 目录元数据
+Thumbs.db                     # Windows 缩略图缓存
+
+# ===== 环境变量（敏感信息！） =====
+# .env 文件包含 API 密钥、数据库密码等敏感信息
+# 绝不应该打包进镜像！
 .env
 .env.local
 .env.*.local
+
+# ===== 日志文件 =====
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.vscode
-.idea
-*.swp
-*.swo
+
+# ===== IDE 配置 =====
+.vscode                       # VS Code 配置
+.idea                         # WebStorm / IntelliJ 配置
+*.swp                         # Vim 交换文件
+*.swo                         # Vim 交换文件

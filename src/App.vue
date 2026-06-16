@@ -42,10 +42,10 @@ onMounted(async () => {
     <div class="app-container">
       <header class="app-header">
         <div class="header-content">
-          <div class="logo">
-            <h1>Native Socket Server</h1>
-            <span class="subtitle">C++ 后端 · Vue 3 前端</span>
-          </div>
+                    <div class="logo">
+                      <h1>Native Socket Server</h1>
+                      <span class="subtitle">C++ 后端 · Vue 3 前端</span>
+                    </div>
                     <div class="server-status">
             <span class="status-label">服务器状态：</span>
             <span :class="['status-indicator', serverStatus.includes('在线') ? 'online' : 'offline']">

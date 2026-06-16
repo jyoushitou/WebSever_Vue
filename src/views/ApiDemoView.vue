@@ -236,13 +236,13 @@ async function testDelete() {
 }
 
 h2 {
-  color: #1a1a2e;
+  color: #e0e0ff;
   font-size: 2rem;
   margin-bottom: 8px;
 }
 
 .page-description {
-  color: #666;
+  color: #b0b0d0;
   margin-bottom: 32px;
 }
 

@@ -1,40 +1,75 @@
 # ============================================================
 # docker-compose.yml — Vue 3 项目 Docker Compose 一键部署
-# 使用方法（Linux）：
-#   生产环境：docker compose up -d
-#   重新构建：docker compose up -d --build
-#   查看日志：docker compose logs -f
-#   停止服务：docker compose down
+# ============================================================
+# 功能：使用 Docker Compose 编排多个容器，实现一键启动/停止
+# 适用场景：生产环境部署（使用 Dockerfile 多阶段构建）
+#
+# 常用命令（在 vue/ 目录下执行）：
+#   启动服务：          docker compose up -d
+#   重新构建并启动：    docker compose up -d --build
+#   查看实时日志：      docker compose logs -f
+#   停止并删除容器：    docker compose down
+#   查看运行状态：      docker compose ps
+#
+# 端口映射说明：
+#   宿主机 60907 → 容器 80（Nginx）
+#   如果 60907 冲突，修改左侧宿主机端口即可
+#
+# 网络说明：
+#   所有服务在 app-network 桥接网络内，可通过服务名互相通信
+#   例如：前端 nginx.conf 中 proxy_pass http://backend:60906
 # ============================================================
 
 services:
-  # ===== Vue 前端服务 =====
+  # ================================================================
+  # Vue 前端服务
+  # ================================================================
   vue-app:
+    # 构建配置：使用当前目录下的 Dockerfile
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: .                 # 构建上下文（当前目录）
+      dockerfile: Dockerfile     # 使用生产环境 Dockerfile
+
+    # 容器名称，方便 docker 命令直接引用
     container_name: vue-app
+
+    # 端口映射：宿主机端口 : 容器端口
+    # 宿主机用 60907（避免 80 端口被占用）
+    # 容器内 Nginx 监听 80 端口（见 nginx.conf）
     ports:
-      - "80:80"          # 映射主机 80 端口到容器 80 端口
+      - "60907:80"
+
+    # 重启策略：除非手动停止，否则自动重启
+    # 其他选项：no / always / on-failure
     restart: unless-stopped
+
+    # 加入自定义网络，方便与后端容器通信
     networks:
       - app-network
-    # 如果后端在另一个容器中，取消注释并配置：
-    # extra_hosts:
-    #   - "host.docker.internal:host-gateway"  # Linux 下访问宿主机
 
-  # ===== （可选）如果你有后端容器，可以在此添加 =====
+    # ===== 可选：如果需要访问宿主机（如宿主机上的后端服务） =====
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"  # Linux 专用
+
+  # ================================================================
+  # （可选）后端 C++ 服务
+  # 如果后端也容器化部署，取消下方注释即可
+  # ================================================================
   # backend:
   #   build:
-  #     context: ../cpp            # 后端项目路径
-  #     dockerfile: Dockerfile
-  #   container_name: backend
+  #     context: ../cpp            # 后端项目路径（相对路径）
+  #     dockerfile: Dockerfile     # 后端的 Dockerfile
+  #   container_name: backend      # 容器名，前端 nginx.conf 用此名通信
   #   ports:
-  #     - "60906:60906"
+  #     - "60906:60906"            # 映射后端端口
   #   restart: unless-stopped
   #   networks:
-  #     - app-network
+  #     - app-network              # 同一网络，与前端互通
 
+# ================================================================
+# 网络配置
+# ================================================================
 networks:
+  # 自定义桥接网络
   app-network:
-    driver: bridge
+    driver: bridge                # 桥接模式，容器间通过服务名通信

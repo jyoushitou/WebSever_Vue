@@ -40,8 +40,21 @@ function toggleChapter() {
 }
 
 function navTo(path) {
-    closeNav()
-  router.push(path)
+  closeNav()
+  if (path === '/') {
+    // 回首页时，文章内容淡出，"jyoushitou" 从左上角飞回居中
+    const allContent = document.querySelectorAll('.header, .breadcrumb, .sidebar, .content-area, .mobile-chapter-wrap')
+    allContent.forEach(el => {
+      el.style.transition = 'opacity 0.5s ease, transform 0.5s ease'
+      el.style.opacity = '0'
+      el.style.transform = 'translateY(20px)'
+    })
+    const titleEl = document.querySelector('.fixed-corner-title')
+    if (titleEl) titleEl.classList.add('fly-back')
+    setTimeout(() => router.push('/'), 900)
+  } else {
+    router.push(path)
+  }
 }
 
 // ===== 文章数据（保底数据） =====
@@ -56,13 +69,11 @@ const chapters = ref([
 const activeChapterIndex = ref(0)
 const contentLoading = ref(true)
 
-// 更新浏览器标题
 function updateDocumentTitle() {
   const chapterName = chapters.value[activeChapterIndex.value]?.name || currentChapter.value
   document.title = `${articleTitle.value} - ${chapterName}`
 }
 
-// 切换章节
 function switchChapter(index) {
   if (index >= 0 && index < chapters.value.length) {
     activeChapterIndex.value = index
@@ -71,7 +82,6 @@ function switchChapter(index) {
   }
 }
 
-// 从后端获取文章数据
 async function fetchArticle() {
   contentLoading.value = true
   try {
@@ -85,7 +95,6 @@ async function fetchArticle() {
     console.error('获取文章数据失败，使用保底数据:', e)
   } finally {
     contentLoading.value = false
-    // 初始化当前章节
     if (chapters.value.length > 0) {
       currentChapter.value = chapters.value[0].name
       activeChapterIndex.value = 0
@@ -95,6 +104,7 @@ async function fetchArticle() {
 }
 
 onMounted(async () => {
+  // 与首页使用同一组背景图，保持视觉连续
   const bgList = [
     'url("/image/129442526_p0.png")',
     'url("/image/88515515_p0.png")'
@@ -102,35 +112,51 @@ onMounted(async () => {
   bgImage.value = bgList[Math.floor(Math.random() * bgList.length)]
 
   await nextTick()
-  // 显示主内容
+  // 直接显示主内容（初始透明，会淡入）
   const mainContent = document.getElementById('mainContent')
-  if (mainContent) mainContent.style.display = 'block'
+  if (mainContent) {
+    mainContent.style.display = 'block'
+    mainContent.style.opacity = '0'
+  }
 
   // 获取文章数据
   await fetchArticle()
   await nextTick()
 
+  // 内容淡入
+  requestAnimationFrame(() => {
+    if (mainContent) {
+      mainContent.style.transition = 'opacity 0.7s ease'
+      mainContent.style.opacity = '1'
+    }
+  })
+
   // 入场动画
-  const header = document.querySelector('.article-body .header')
-  if (header) header.classList.add('pop-in')
+  setTimeout(() => {
+    const header = document.querySelector('.article-body .header')
+    if (header) header.classList.add('pop-in')
+  }, 100)
 
   setTimeout(() => {
     const breadcrumb = document.querySelector('.article-body .breadcrumb')
     if (breadcrumb) breadcrumb.classList.add('pop-in')
-  }, 200)
+  }, 300)
 
   setTimeout(() => {
     const sidebar = document.querySelector('.article-body .sidebar')
     if (sidebar) sidebar.classList.add('pop-in')
     const content = document.querySelector('.article-body .content-area')
     if (content) content.classList.add('pop-in')
-  }, 400)
+  }, 500)
 })
 </script>
 
 <template>
   <div class="article-body" :style="{ backgroundImage: bgImage }">
     <div class="main-content" id="mainContent">
+      <!-- "jyoushitou" 固定在左上角，与首页位置一致，不产生跳转感 -->
+      <div class="fixed-corner-title">jyoushitou</div>
+
       <header class="header">
         <button class="menu-btn" id="menuBtn" :style="{ display: menuBtnDisplay }" @click="toggleNav">☰</button>
         <h1 class="page-title">{{ articleTitle }}</h1>
@@ -427,6 +453,31 @@ onMounted(async () => {
 .article-body .mobile-chapter-wrap { display: none; }
 .article-body .mobile-prev,
 .article-body .mobile-next { display: none; }
+
+/* "jyoushitou" 固定左上角，回首页时飞回居中 */
+.article-body .fixed-corner-title {
+    position: fixed;
+    top: 10px;
+    left: 16px;
+    font-size: 1.1rem;
+    font-weight: 900;
+    font-family: "KaiTi", "STKaiti", serif;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 3px;
+    opacity: 0.7;
+    z-index: 999;
+    pointer-events: none;
+    transition: all 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+    white-space: nowrap;
+}
+.article-body .fixed-corner-title.fly-back {
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 3rem;
+    letter-spacing: 6px;
+    text-align: center;
+}
 
 .article-body .main-content {
     display: none;

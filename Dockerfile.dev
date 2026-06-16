@@ -1,18 +1,37 @@
 # ============================================================
 # Dockerfile.dev — Vue 3 开发环境容器（支持热更新）
+# 镜像源：DaoCloud 国内加速镜像
+# 端口：60907（与 vite.config.js 一致）
+# 使用方式：
+#   docker build -f Dockerfile.dev -t vue-dev .
+#   docker run -p 60907:60907 -v ${PWD}/src:/app/src vue-dev
+#   （挂载 src 目录后，修改代码实时热更新）
 # ============================================================
 
-FROM node:20-alpine
+# ===== 基础镜像 =====
+# 使用 DaoCloud 国内加速源，避免 Docker Hub 连接失败
+FROM docker.m.daocloud.io/library/node:20-alpine
 
+# ===== 设置工作目录 =====
+# 后续所有 COPY / RUN / CMD 都在 /app 下执行
 WORKDIR /app
 
-# 安装依赖
+# ===== 复制依赖配置文件并安装依赖 =====
+# 先把 package.json 复制进来安装依赖，利用 Docker 缓存机制
+# 只要 package.json 没变，下次构建直接复用缓存层，不用重新 npm install
 COPY package*.json ./
-RUN npm install
+RUN npm install && npm cache clean --force
 
-# 复制源代码（通过 volume 挂载覆盖）
+# ===== 复制项目源代码 =====
+# 开发环境下建议用 -v 挂载 volume 替代 COPY，实现热更新
+# 生产构建才会真正用到这里的 COPY
 COPY . .
 
-# 启动 Vite 开发服务器
+# ===== 暴露端口 =====
+# 与 vite.config.js 中 server.port 一致（60907）
 EXPOSE 60907
+
+# ===== 启动 Vite 开发服务器 =====
+# --host 0.0.0.0 让容器外部可以访问（默认只能 localhost）
+# --port 60907 指定端口，与上面 EXPOSE 保持一致
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "60907"]

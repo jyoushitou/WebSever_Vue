@@ -13,11 +13,41 @@ import UserNav from '@/components/UserNav.vue'
 
 const router = useRouter()
 
-function goToArticle() {
-  router.push('/article')
+function goToArticle(event) {
+  // 点击"文章"时，所有内容元素从点击位置四散淡出，"jyoushitou" 移到左上角
+  const clickX = event ? event.clientX : window.innerWidth / 2
+  const clickY = event ? event.clientY : window.innerHeight / 2
+
+  // 给每个内容元素计算相对于点击位置的偏移，四散淡出
+  document.querySelectorAll('.header, .first-title, .section, .h-backgrand, .img-box, .second-title').forEach(el => {
+    const rect = el.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const dx = cx - clickX
+    const dy = cy - clickY
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    const angle = Math.atan2(dy, dx)
+    const drift = Math.min(dist * 0.15 + 30, 200)
+    const tx = Math.cos(angle) * drift
+    const ty = Math.sin(angle) * drift
+    el.style.transition = 'all 0.7s cubic-bezier(0.5, 0, 0.75, 0)'
+    el.style.opacity = '0'
+    el.style.transform = `translate(${tx}px, ${ty}px) scale(0.7)`
+  })
+
+  // "jyoushitou" 飞到左上角
+  const typingBar = document.querySelector('.top-typing-bar')
+  if (typingBar) {
+    typingBar.classList.add('fly-corner')
+  }
+  setTimeout(() => router.push('/article'), 900)
 }
 
-// ─── 页面数据（从后端 API 获取，失败用默认值） ───
+// ✨ 顶部打字动画状态
+const typedText = ref('')
+const showCursor = ref(true)
+const fullText = 'jyoushitou'
+// ─── 页面数据（
 const sectionsData = ref([
   { title: '文章', rows: [
     { label: '穿越', imgs: ['/image/129442526_p0.png','/image/88515515_p0.png','/image/129442526_p0.png','/image/88515515_p0.png','/image/129442526_p0.png','/image/88515515_p0.png'] },
@@ -52,91 +82,74 @@ async function fetchContents() {
   } catch (e) {
     console.error('获取内容列表失败，使用默认数据:', e)
   }
+  // 无论 API 成功还是失败，都触发动画
+  sectionsData.value = [...sectionsData.value]
 }
 
 let observer = null
 
-function runSplashAndAnimations() {
+function runContentAnimations() {
   const allBgs = document.querySelectorAll('.h-backgrand')
   if (allBgs.length === 0) return
 
-  const splash = document.getElementById('splashTitle')
-  const h1 = document.getElementById('splashH1')
-  if (!splash || !h1) return
+    // 主内容默认已显示，开始弹出内容动画
+  const header = document.querySelector('.header')
+  const firstTitles = document.querySelectorAll('.first-title')
+  const sectionEls = document.querySelectorAll('.section')
 
-  splash.style.display = 'flex'
-  splash.style.background = 'rgba(0,0,0,0.3)'
-  h1.style.transition = 'all 1.2s ease'
-  h1.style.fontSize = '5rem'
-  h1.style.opacity = '1'
-  h1.style.transform = 'translateY(0)'
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      h1.style.transform = 'translateY(calc(-50vh + 40px)) scale(0.5)'
-      splash.style.background = 'transparent'
-    })
-  })
-
-  setTimeout(() => {
-    document.getElementById('mainContent').style.display = 'block'
-
-    const header = document.querySelector('.header')
-    const firstTitles = document.querySelectorAll('.first-title')
-    const sectionEls = document.querySelectorAll('.section')
-
-    if (header) header.classList.add('pop-in')
-    for (let ti = 0; ti < firstTitles.length; ti++) {
+  // 弹出 header（登录/注册）
+  if (header) {
+    setTimeout(() => header.classList.add('pop-in'), 50)
+  }
+  // 依次弹出板块标题
+  for (let ti = 0; ti < firstTitles.length; ti++) {
+    setTimeout(() => {
       firstTitles[ti].classList.add('pop-in')
       if (sectionEls[ti]) sectionEls[ti].classList.add('pop-in')
-    }
+    }, 200 + ti * 150)
+  }
 
-    let maxRows = 0
-    for (let si = 0; si < sectionEls.length; si++) {
-      const rc = sectionEls[si].querySelectorAll('.h-backgrand').length
-      if (rc > maxRows) maxRows = rc
-    }
+  let maxRows = 0
+  for (let si = 0; si < sectionEls.length; si++) {
+    const rc = sectionEls[si].querySelectorAll('.h-backgrand').length
+    if (rc > maxRows) maxRows = rc
+  }
 
-    let delay = 600
-    for (let rj = 0; rj < maxRows; rj++) {
-      ;(function(rowIdx, d) {
-        setTimeout(() => {
-          for (let siA = 0; siA < sectionEls.length; siA++) {
-            const bgsA = sectionEls[siA].querySelectorAll('.h-backgrand')
-            if (bgsA[rowIdx]) bgsA[rowIdx].classList.add('pop-in')
-          }
-        }, d)
-      })(rj, delay)
-
-      let maxImg = 0
-      for (let si2 = 0; si2 < sectionEls.length; si2++) {
-        const bgs2 = sectionEls[si2].querySelectorAll('.h-backgrand')
-        if (bgs2[rj]) {
-          const ic = bgs2[rj].querySelectorAll('.img-box').length
-          if (ic > maxImg) maxImg = ic
-        }
-      }
-      for (let bj = 0; bj < maxImg; bj++) {
-        ;(function(rowIdx, boxIdx, d) {
-          setTimeout(() => {
-            for (let si3 = 0; si3 < sectionEls.length; si3++) {
-              const bgs3 = sectionEls[si3].querySelectorAll('.h-backgrand')
-              if (bgs3[rowIdx]) {
-                const boxes = bgs3[rowIdx].querySelectorAll('.img-box')
-                if (boxes[boxIdx]) boxes[boxIdx].classList.add('pop-in')
-              }
-            }
-          }, d)
-        })(rj, bj, delay + 50 + bj * 80)
-      }
-      delay += maxImg * 80 + 50
-    }
-
+  let delay = 500
+  for (let rj = 0; rj < maxRows; rj++) {
+    const rowIdx = rj
     setTimeout(() => {
-      startObserver(allBgs)
-    }, delay + 500)
+      for (let siA = 0; siA < sectionEls.length; siA++) {
+        const bgsA = sectionEls[siA].querySelectorAll('.h-backgrand')
+        if (bgsA[rowIdx]) bgsA[rowIdx].classList.add('pop-in')
+      }
+    }, delay)
 
-  }, 1300)
+    let maxImg = 0
+    for (let si2 = 0; si2 < sectionEls.length; si2++) {
+      const bgs2 = sectionEls[si2].querySelectorAll('.h-backgrand')
+      if (bgs2[rowIdx]) {
+        const ic = bgs2[rowIdx].querySelectorAll('.img-box').length
+        if (ic > maxImg) maxImg = ic
+      }
+    }
+    for (let bj = 0; bj < maxImg; bj++) {
+      setTimeout(() => {
+        for (let si3 = 0; si3 < sectionEls.length; si3++) {
+          const bgs3 = sectionEls[si3].querySelectorAll('.h-backgrand')
+          if (bgs3[rowIdx]) {
+            const boxes = bgs3[rowIdx].querySelectorAll('.img-box')
+            if (boxes[bj]) boxes[bj].classList.add('pop-in')
+          }
+        }
+      }, delay + 40 + bj * 60)
+    }
+    delay += maxImg * 60 + 40
+  }
+
+  setTimeout(() => {
+    startObserver(allBgs)
+  }, delay + 400)
 }
 
 function startObserver(allBgs) {
@@ -155,16 +168,18 @@ function startObserver(allBgs) {
   allBgs.forEach(bg => observer.observe(bg))
 }
 
-// 监听 sectionsData 变化，数据到达后触发动画
+// 监听 sectionsData 变化（API 数据回来后触发动画）
+let splashDone = false
 watch(sectionsData, async (val) => {
-  if (val && val.length > 0) {
+  if (val && val.length > 0 && !splashDone) {
+    splashDone = true
     await nextTick()
-    runSplashAndAnimations()
+    runContentAnimations()
   }
-}, { immediate: true })
+})
 
 onMounted(async () => {
-  // 先加载背景
+  // 先统一加载背景（首页始终使用同一张背景图）
   const bgList = [
     'url("/image/129442526_p0.png")',
     'url("/image/88515515_p0.png")'
@@ -173,9 +188,25 @@ onMounted(async () => {
   const hp = document.querySelector('.home-page')
   if (hp) hp.style.backgroundImage = bg
 
-  // 获取数据（API 会覆盖默认值）
+  // 先获取数据，数据就绪后 watch 会触发内容渐入动画
   await fetchContents()
   await nextTick()
+
+  // 如果是从其他页面跳转回来的，"jyoushitou" 应该已经在居中位置
+  // 只有首次加载时才打字
+  const hasTyped = sessionStorage.getItem('jyoushitou_typed')
+  if (!hasTyped) {
+    for (let i = 0; i < fullText.length; i++) {
+      await new Promise(resolve => setTimeout(resolve, 120))
+      typedText.value += fullText[i]
+    }
+    setTimeout(() => { showCursor.value = false }, 1200)
+    sessionStorage.setItem('jyoushitou_typed', 'true')
+  } else {
+    // 非首次加载，直接显示完整文字
+    typedText.value = fullText
+    showCursor.value = false
+  }
 })
 
 onBeforeUnmount(() => {
@@ -184,28 +215,29 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="home-page index-body">
-    <!-- 开屏大标题 -->
-    <div class="splash-title" id="splashTitle">
-      <h1 class="title" id="splashH1">jyoushitou</h1>
-    </div>
-
+    <div class="home-page index-body">
     <!-- 主内容区 -->
     <div class="main-content" id="mainContent">
+                  <!-- 顶部打字标题栏 -->
+                  <div class="top-typing-bar">
+                    <span class="typing-text">{{ typedText }}</span>
+                    <span v-if="showCursor" class="typing-cursor">|</span>
+                  </div>
+
                   <header class="header">
         <UserNav />
       </header>
 
       <main>
         <template v-for="(sec, si) in sectionsData" :key="si">
-          <h2 class="first-title" :class="{ clickable: sec.title === '文章' }" @click="sec.title === '文章' && goToArticle()">{{ sec.title }}</h2>
+                    <h2 class="first-title" :class="{ clickable: sec.title === '文章' }" @click="sec.title === '文章' && goToArticle($event)">{{ sec.title }}</h2>
           <section class="section">
                         <template v-for="(row, ri) in sec.rows" :key="ri">
-                          <div v-if="row.imgs && row.imgs.length > 0" class="h-backgrand" :class="{ clickable: sec.title === '文章' }" @click="sec.title === '文章' && goToArticle()">
-                            <div class="second-title" :class="{ clickable: sec.title === '文章' }" @click.stop="sec.title === '文章' && goToArticle()">{{ row.label }}</div>
+                          <div v-if="row.imgs && row.imgs.length > 0" class="h-backgrand" :class="{ clickable: sec.title === '文章' }" @click="sec.title === '文章' && goToArticle($event)">
+                            <div class="second-title" :class="{ clickable: sec.title === '文章' }" @click.stop="sec.title === '文章' && goToArticle($event)">{{ row.label }}</div>
                             <div class="content-col">
                               <div class="img-row">
-                                <div v-for="(img, bi) in row.imgs.slice(0, 10)" :key="bi" class="img-box" :class="{ clickable: sec.title === '文章' }" @click.stop="sec.title === '文章' && goToArticle()"><img :src="img" alt="" /></div>
+                                <div v-for="(img, bi) in row.imgs.slice(0, 10)" :key="bi" class="img-box" :class="{ clickable: sec.title === '文章' }" @click.stop="sec.title === '文章' && goToArticle($event)"><img :src="img" alt="" /></div>
                               </div>
                             </div>
                           </div>
@@ -218,18 +250,28 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
+/* home-page 背景 */
+.home-page {
+  min-height: 100vh;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
 /* header */
 .index-body .header {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   margin-bottom: 24px;
-  margin-top: 60px;
+  margin-top: 20px;
   opacity: 0;
-  transform: translateY(40px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  transform: translateY(40px) scale(0.9);
+  transition: opacity 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+              transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.index-body .header.pop-in { opacity: 1; transform: translateY(0); }
+.index-body .header.pop-in { opacity: 1; transform: translateY(0) scale(1); }
 .first-title {
   text-align: center;
   padding: 28px 0 12px 0;
@@ -238,11 +280,11 @@ onBeforeUnmount(() => {
   color: rgba(255,255,255,0.9);
   letter-spacing: 4px;
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
-              transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: translateY(30px) scale(0.85);
+  transition: opacity 0.9s cubic-bezier(0.34, 1.56, 0.64, 1),
+              transform 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.first-title.pop-in { opacity: 1; transform: translateY(0); }
+.first-title.pop-in { opacity: 1; transform: translateY(0) scale(1); }
 .first-title.clickable { cursor: pointer; transition: all 0.3s ease; }
 .first-title.clickable:hover { text-shadow: 0 0 20px rgba(255,255,255,0.6); transform: scale(1.05); }
 .h-backgrand.clickable { cursor: pointer; transition: all 0.3s ease; }
@@ -346,40 +388,41 @@ onBeforeUnmount(() => {
 }
 .img-box.pop-in { opacity: 1; transform: translateY(0) scale(1); }
 
-/* splash-title */
-.splash-title {
+/* 顶部打字标题栏 — 固定定位，初始居中，跳转时移到左上角 */
+.top-typing-bar {
   position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  pointer-events: none;
-  user-select: text;
-  transition: background 0.5s ease;
-}
-.splash-title .title {
-  font-size: 4.5rem;
-  font-weight: normal;
-  font-family: "KaiTi", "STKaiti", serif;
-  color: rgba(255,255,255,0.9);
-  text-shadow: 0 2px 12px rgba(0,0,0,0.2);
-  margin: 0;
-  position: relative;
-}
-.splash-title .title::after {
-  content: '';
-  position: absolute;
-  bottom: -8px;
+  top: 30px;
   left: 50%;
   transform: translateX(-50%);
-  width: 60px;
-  height: 2px;
-  background: rgba(255,255,255,0.5);
-  border-radius: 1px;
+  font-size: 3rem;
+  font-weight: 900;
+  font-family: "KaiTi", "STKaiti", serif;
+  color: rgba(255,255,255,0.9);
+  text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  letter-spacing: 6px;
+  text-align: center;
+  z-index: 100;
+  transition: all 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+  white-space: nowrap;
 }
-.main-content { display: none; }
+.top-typing-bar.fly-corner {
+  top: 10px;
+  left: 16px;
+  transform: translateX(0);
+  font-size: 1.1rem;
+  letter-spacing: 3px;
+  text-align: left;
+  pointer-events: none;
+}
+.typing-cursor {
+  color: rgba(255,255,255,0.8);
+  font-weight: 100;
+  animation: blink 0.7s step-end infinite;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}
+.main-content { display: block; }
 
 /* 响应式 */
 @media (max-width: 767px) {

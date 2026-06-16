@@ -121,7 +121,7 @@ npm run dev</code></pre>
 }
 
 h2 {
-  color: #1a1a2e;
+  color: #e0e0ff;
   font-size: 2rem;
   margin-bottom: 32px;
 }
@@ -146,7 +146,7 @@ h2 {
 }
 
 .about-section p {
-  color: #555;
+  color: #444;
   line-height: 1.8;
   font-size: 1rem;
 }
