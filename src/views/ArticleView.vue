@@ -112,42 +112,34 @@ onMounted(async () => {
   bgImage.value = bgList[Math.floor(Math.random() * bgList.length)]
 
   await nextTick()
-  // 直接显示主内容（初始透明，会淡入）
+  // 直接显示主内容
   const mainContent = document.getElementById('mainContent')
   if (mainContent) {
     mainContent.style.display = 'block'
-    mainContent.style.opacity = '0'
   }
 
-  // 获取文章数据
-  await fetchArticle()
-  await nextTick()
-
-  // 内容淡入
+  // ★ 不等数据，立即播放入场动画（用保底数据）
+  // 用 requestAnimationFrame 确保 transition 生效
   requestAnimationFrame(() => {
-    if (mainContent) {
-      mainContent.style.transition = 'opacity 0.7s ease'
-      mainContent.style.opacity = '1'
-    }
+    setTimeout(() => {
+      const header = document.querySelector('.article-body .header')
+      if (header) header.classList.add('pop-in')
+    }, 50)
+    setTimeout(() => {
+      const breadcrumb = document.querySelector('.article-body .breadcrumb')
+      if (breadcrumb) breadcrumb.classList.add('pop-in')
+    }, 200)
+    setTimeout(() => {
+      const sidebar = document.querySelector('.article-body .sidebar')
+      if (sidebar) sidebar.classList.add('pop-in')
+      const content = document.querySelector('.article-body .content-area')
+      if (content) content.classList.add('pop-in')
+    }, 400)
   })
 
-  // 入场动画
-  setTimeout(() => {
-    const header = document.querySelector('.article-body .header')
-    if (header) header.classList.add('pop-in')
-  }, 100)
-
-  setTimeout(() => {
-    const breadcrumb = document.querySelector('.article-body .breadcrumb')
-    if (breadcrumb) breadcrumb.classList.add('pop-in')
-  }, 300)
-
-  setTimeout(() => {
-    const sidebar = document.querySelector('.article-body .sidebar')
-    if (sidebar) sidebar.classList.add('pop-in')
-    const content = document.querySelector('.article-body .content-area')
-    if (content) content.classList.add('pop-in')
-  }, 500)
+  // ★ 异步加载数据（不阻塞动画）
+  await fetchArticle()
+  await nextTick()
 })
 </script>
 

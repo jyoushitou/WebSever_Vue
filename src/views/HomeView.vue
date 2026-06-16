@@ -18,8 +18,11 @@ function goToArticle(event) {
   const clickX = event ? event.clientX : window.innerWidth / 2
   const clickY = event ? event.clientY : window.innerHeight / 2
 
-  // 给每个内容元素计算相对于点击位置的偏移，四散淡出
-  document.querySelectorAll('.header, .first-title, .section, .h-backgrand, .img-box, .second-title').forEach(el => {
+  // 批量计算偏移，用 requestAnimationFrame 统一应用，避免卡顿
+  const els = document.querySelectorAll('.header, .first-title, .section, .h-backgrand, .img-box, .second-title')
+  const styles = []
+
+  els.forEach(el => {
     const rect = el.getBoundingClientRect()
     const cx = rect.left + rect.width / 2
     const cy = rect.top + rect.height / 2
@@ -30,17 +33,24 @@ function goToArticle(event) {
     const drift = Math.min(dist * 0.15 + 30, 200)
     const tx = Math.cos(angle) * drift
     const ty = Math.sin(angle) * drift
-    el.style.transition = 'all 0.7s cubic-bezier(0.5, 0, 0.75, 0)'
-    el.style.opacity = '0'
-    el.style.transform = `translate(${tx}px, ${ty}px) scale(0.7)`
+    styles.push({ el, tx, ty })
   })
 
-  // "jyoushitou" 飞到左上角
+  requestAnimationFrame(() => {
+    styles.forEach(({ el, tx, ty }) => {
+      el.style.transition = 'all 0.7s cubic-bezier(0.5, 0, 0.75, 0)'
+      el.style.opacity = '0'
+      el.style.transform = `translate(${tx}px, ${ty}px) scale(0.7)`
+    })
+  })
+
+    // "jyoushitou" 飞到左上角
   const typingBar = document.querySelector('.top-typing-bar')
   if (typingBar) {
     typingBar.classList.add('fly-corner')
   }
-  setTimeout(() => router.push('/article'), 900)
+    // 淡出接近完成时跳转，减少空白停顿
+  setTimeout(() => router.push('/article'), 550)
 }
 
 // ✨ 顶部打字动画状态
@@ -90,7 +100,11 @@ let observer = null
 
 function runContentAnimations() {
   const allBgs = document.querySelectorAll('.h-backgrand')
-  if (allBgs.length === 0) return
+  if (allBgs.length === 0) {
+    // DOM 还没渲染好，重试
+    requestAnimationFrame(() => runContentAnimations())
+    return
+  }
 
     // 主内容默认已显示，开始弹出内容动画
   const header = document.querySelector('.header')
@@ -168,18 +182,11 @@ function startObserver(allBgs) {
   allBgs.forEach(bg => observer.observe(bg))
 }
 
-// 监听 sectionsData 变化（API 数据回来后触发动画）
-let splashDone = false
-watch(sectionsData, async (val) => {
-  if (val && val.length > 0 && !splashDone) {
-    splashDone = true
-    await nextTick()
-    runContentAnimations()
-  }
-})
+// 监听 sectionsData 变化（API 数据回来后更新内容，不再触发弹出动画）
+watch(sectionsData, () => {})
 
 onMounted(async () => {
-  // 先统一加载背景（首页始终使用同一张背景图）
+  // 先统一加载背景
   const bgList = [
     'url("/image/129442526_p0.png")',
     'url("/image/88515515_p0.png")'
@@ -188,25 +195,37 @@ onMounted(async () => {
   const hp = document.querySelector('.home-page')
   if (hp) hp.style.backgroundImage = bg
 
-  // 先获取数据，数据就绪后 watch 会触发内容渐入动画
-  await fetchContents()
+  // 先异步加载数据（不 await，不阻塞后续）
+  const fetchPromise = fetchContents()
+
+  // 等待 Vue 渲染保底数据到 DOM
   await nextTick()
 
-  // 如果是从其他页面跳转回来的，"jyoushitou" 应该已经在居中位置
-  // 只有首次加载时才打字
+  // ★ 立即播放入场动画（用保底数据），不等 API
+  runContentAnimations()
+
+  // 判断是否首次访问（打字机效果只在新打开页面时显示）
   const hasTyped = sessionStorage.getItem('jyoushitou_typed')
   if (!hasTyped) {
+    // 打字机效果
     for (let i = 0; i < fullText.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 120))
+      await new Promise(resolve => setTimeout(resolve, 80))
       typedText.value += fullText[i]
     }
-    setTimeout(() => { showCursor.value = false }, 1200)
+    setTimeout(() => { showCursor.value = false }, 800)
     sessionStorage.setItem('jyoushitou_typed', 'true')
   } else {
-    // 非首次加载，直接显示完整文字
+    // 非首次：直接显示完整文字
     typedText.value = fullText
     showCursor.value = false
   }
+
+  // 等待数据加载完成（如果有新数据，Vue 自动响应式更新）
+  await fetchPromise
+})
+
+onBeforeUnmount(() => {
+  if (observer) observer.disconnect()
 })
 
 onBeforeUnmount(() => {
