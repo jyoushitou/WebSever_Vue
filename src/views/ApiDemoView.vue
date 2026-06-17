@@ -1,35 +1,68 @@
 /**
- * ApiDemoView.vue — API 接口演示页面
- * 
- * 提供标签页形式切换各 API 接口，包含表单输入和响应展示。
- * 集成了登录/退出、GET/POST/PUT/DELETE 五种接口测试。
+ * ============================================================
+ *  ApiDemoView.vue — API 接口演示 / 测试页面
+ * ============================================================
+ *
+ * 【功能】
+ *   以标签页（Tab）形式切换并测试后端的五个 RESTful 接口：
+ *   ┌─────────────┬─────────────────┬──────────────────────────┐
+ *   │ 标签         │ 接口             │ 说明                     │
+ *   ├─────────────┼─────────────────┼──────────────────────────┤
+ *   │ 🔐 登录     │ POST /api/login │ 用户名 + 密码鉴权        │
+ *   │ 👋 问候     │ GET  /api/hello │ 获取欢迎消息 & PID       │
+ *   │ 📤 提交数据 │ POST /api/data  │ 提交 name/age/email      │
+ *   │ ✏️ 更新     │ PUT  /api/update│ 更新指定 ID 的记录       │
+ *   │ 🗑️ 删除     │ DELETE /api/del │ 删除指定 ID 的记录       │
+ *   └─────────────┴─────────────────┴──────────────────────────┘
+ *
+ * 【交互】
+ *   - 每个标签页显示对应接口的表单或按钮
+ *   - 发送请求后，响应结果在底部统一展示（JSON 格式化）
+ *   - 登录成功后展示用户信息卡片，可退出登录
+ *   - 加载状态禁用按钮，显示"请求中..."
+ *
+ * 【状态管理】
+ *   所有 API 调用通过 apiStore（Pinia）分发，响应数据统一管理。
+ * ============================================================
  */
 
 <script setup>
 import { useApiStore } from '@/stores/api'
 import { ref } from 'vue'
 
+// ── 全局 API 状态管理 ──
 const apiStore = useApiStore()
-// POST 表单数据
-const postForm = ref({ name: '', age: '', email: '' })
-// 登录表单数据
-const loginForm = ref({ name: '', password: '' })
-// PUT 表单数据
-const putForm = ref({ id: '', name: '' })
-// DELETE 表单数据
-const deleteForm = ref({ id: '' })
 
-const responseData = ref(null)
-const activeTab = ref('hello')
+// ════════════════════════════════════════════════════════════
+//  表单数据
+// ════════════════════════════════════════════════════════════
+const postForm = ref({ name: '', age: '', email: '' })    // POST /api/data 表单
+const loginForm = ref({ name: '', password: '' })          // POST /api/login 表单
+const putForm = ref({ id: '', name: '' })                  // PUT /api/update 表单
+const deleteForm = ref({ id: '' })                         // DELETE /api/delete 表单
 
+// ════════════════════════════════════════════════════════════
+//  标签页状态
+// ════════════════════════════════════════════════════════════
+const responseData = ref(null)   // 最近一次 API 调用的 JSON 响应
+const activeTab = ref('hello')   // 当前选中的标签页 ID
+
+// ── 标签页定义 ──
 const tabs = [
-  { id: 'login', label: 'POST /api/login', icon: '🔐' },
-  { id: 'hello', label: 'GET /api/hello', icon: '👋' },
-  { id: 'post', label: 'POST /api/data', icon: '📤' },
-  { id: 'put', label: 'PUT /api/update', icon: '✏️' },
+  { id: 'login',  label: 'POST /api/login',  icon: '🔐' },
+  { id: 'hello',  label: 'GET /api/hello',   icon: '👋' },
+  { id: 'post',   label: 'POST /api/data',   icon: '📤' },
+  { id: 'put',    label: 'PUT /api/update',  icon: '✏️' },
   { id: 'delete', label: 'DELETE /api/delete', icon: '🗑️' }
 ]
 
+// ════════════════════════════════════════════════════════════
+//  API 测试方法
+//  每个方法：设置 activeTab → 调用 apiStore 方法 → 响应存入 responseData
+//  失败时将错误信息展示在响应框中
+// ════════════════════════════════════════════════════════════
+
+/** GET /api/hello — 问候接口 */
 async function testHello() {
   activeTab.value = 'hello'
   try {
@@ -40,6 +73,7 @@ async function testHello() {
   }
 }
 
+/** POST /api/login — 登录鉴权接口 */
 async function testLogin() {
   activeTab.value = 'login'
   try {
@@ -53,6 +87,7 @@ async function testLogin() {
   }
 }
 
+/** 退出登录，清空表单 */
 async function handleLogout() {
   await apiStore.logout()
   loginForm.value.name = ''
@@ -60,6 +95,7 @@ async function handleLogout() {
   responseData.value = { message: '已退出登录' }
 }
 
+/** POST /api/data — 提交数据接口 */
 async function testPost() {
   activeTab.value = 'post'
   try {
@@ -74,6 +110,7 @@ async function testPost() {
   }
 }
 
+/** PUT /api/update — 更新数据接口 */
 async function testPut() {
   activeTab.value = 'put'
   try {
@@ -87,6 +124,7 @@ async function testPut() {
   }
 }
 
+/** DELETE /api/delete — 删除数据接口 */
 async function testDelete() {
   activeTab.value = 'delete'
   try {
@@ -226,43 +264,39 @@ async function testDelete() {
 </template>
 
 <style scoped>
+/* ════════════════════════════════════════════════════════════
+   页面入场淡入动画
+   ════════════════════════════════════════════════════════════ */
 .api-demo {
   animation: fadeIn 0.5s ease;
 }
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ════════════════════════════════════════════════════════════
+   页面标题 & 描述
+   ════════════════════════════════════════════════════════════ */
 h2 {
   color: #e0e0ff;
   font-size: 2rem;
   margin-bottom: 8px;
 }
-
 .page-description {
   color: #b0b0d0;
   margin-bottom: 32px;
 }
 
-.btn-danger {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
-}
-
-.btn-danger:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
-}
-
+/* ════════════════════════════════════════════════════════════
+   标签页导航栏
+   ════════════════════════════════════════════════════════════ */
 .api-tabs {
   display: flex;
   gap: 8px;
   margin-bottom: 24px;
   flex-wrap: wrap;
 }
-
 .tab-btn {
   padding: 10px 20px;
   border: 2px solid #e0e0e0;
@@ -275,22 +309,22 @@ h2 {
   align-items: center;
   gap: 6px;
 }
-
 .tab-btn:hover {
   border-color: #667eea;
   color: #667eea;
 }
-
 .tab-btn.active {
   background: #667eea;
   color: white;
   border-color: #667eea;
 }
-
 .tab-icon {
   font-size: 1.1rem;
 }
 
+/* ════════════════════════════════════════════════════════════
+   内容区（白色卡片）
+   ════════════════════════════════════════════════════════════ */
 .api-content {
   background: white;
   border-radius: 12px;
@@ -298,20 +332,24 @@ h2 {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
 }
 
+/* ════════════════════════════════════════════════════════════
+   每个 API 标签页内容
+   ════════════════════════════════════════════════════════════ */
 .api-section {
   margin-bottom: 24px;
 }
-
 .api-section h3 {
   color: #1a1a2e;
   margin-bottom: 8px;
 }
-
 .api-description {
   color: #666;
   margin-bottom: 16px;
 }
 
+/* ════════════════════════════════════════════════════════════
+   按钮通用样式
+   ════════════════════════════════════════════════════════════ */
 .btn {
   padding: 10px 24px;
   border: none;
@@ -321,33 +359,39 @@ h2 {
   font-weight: 500;
   transition: all 0.3s ease;
 }
-
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
-
 .btn-primary {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
 }
-
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
 }
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+.btn-danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+}
 
+/* ════════════════════════════════════════════════════════════
+   表单输入
+   ════════════════════════════════════════════════════════════ */
 .input-group {
   margin-bottom: 16px;
 }
-
 .input-group label {
   display: block;
   margin-bottom: 8px;
   color: #444;
   font-weight: 500;
 }
-
 .input-field {
   width: 100%;
   max-width: 400px;
@@ -357,30 +401,29 @@ h2 {
   font-size: 1rem;
   transition: border-color 0.3s ease;
 }
-
 .input-field:focus {
   outline: none;
   border-color: #667eea;
 }
 
+/* ════════════════════════════════════════════════════════════
+   响应结果展示（深色代码框）
+   ════════════════════════════════════════════════════════════ */
 .response-section {
   margin-top: 24px;
   padding-top: 24px;
   border-top: 1px solid #e0e0e0;
 }
-
 .response-section h4 {
   color: #1a1a2e;
   margin-bottom: 12px;
 }
-
 .response-box {
   background: #1a1a2e;
   border-radius: 8px;
   padding: 16px;
   overflow-x: auto;
 }
-
 .response-box pre {
   color: #4ade80;
   font-family: 'Fira Code', monospace;
@@ -391,6 +434,9 @@ h2 {
   word-break: break-all;
 }
 
+/* ════════════════════════════════════════════════════════════
+   错误提示
+   ════════════════════════════════════════════════════════════ */
 .error-message {
   margin-top: 16px;
   padding: 12px 16px;
@@ -400,10 +446,12 @@ h2 {
   color: #dc2626;
 }
 
+/* ════════════════════════════════════════════════════════════
+   已登录用户信息卡片
+   ════════════════════════════════════════════════════════════ */
 .user-info {
   margin-bottom: 20px;
 }
-
 .user-card {
   display: flex;
   align-items: center;
@@ -413,22 +461,18 @@ h2 {
   border: 1px solid #bbf7d0;
   border-radius: 12px;
 }
-
 .user-icon {
   font-size: 2.5rem;
 }
-
 .user-details {
   flex: 1;
 }
-
 .user-name {
   font-size: 1.2rem;
   font-weight: 600;
   color: #166534;
   margin: 0;
 }
-
 .user-meta {
   font-size: 0.85rem;
   color: #15803d;

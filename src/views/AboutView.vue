@@ -1,7 +1,18 @@
 /**
- * AboutView.vue — 关于页面
- * 
- * 展示项目的简介、技术栈、启动方式和 API 接口文档。
+ * ============================================================
+ *  AboutView.vue — 关于页面（项目介绍 + API 文档）
+ * ============================================================
+ *
+ * 【内容板块】
+ *   1. 项目简介 —— C++ Socket 后端 + Vue 3 前端的全栈介绍
+ *   2. 技术特点 —— 后端（C++ Socket/多线程/HTTP）和前端（Vue 3/Pinia/Vite）
+ *   3. 快速开始 —— 编译运行后端 & 启动前端开发服务器的命令
+ *   4. API 接口表 —— 列出所有 RESTful 接口（GET/POST/PUT/DELETE）及说明
+ *
+ * 【样式】
+ *   纯展示组件，无 script setup 逻辑，采用 scoped 样式。
+ *   卡片式布局、代码块深色背景、API 表格带颜色标签。
+ * ============================================================
  */
 
 <script setup>
@@ -111,76 +122,79 @@ npm run dev</code></pre>
 </template>
 
 <style scoped>
+/* ════════════════════════════════════════════════════════════
+   页面淡入动画
+   ════════════════════════════════════════════════════════════ */
 .about {
   animation: fadeIn 0.5s ease;
 }
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ════════════════════════════════════════════════════════════
+   页面标题
+   ════════════════════════════════════════════════════════════ */
 h2 {
   color: #e0e0ff;
   font-size: 2rem;
   margin-bottom: 32px;
 }
 
+/* ════════════════════════════════════════════════════════════
+   内容区：白色卡片垂直排列
+   ════════════════════════════════════════════════════════════ */
 .about-content {
   display: flex;
   flex-direction: column;
   gap: 32px;
 }
-
 .about-section {
   background: white;
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
 }
-
 .about-section h3 {
   color: #1a1a2e;
   font-size: 1.3rem;
   margin-bottom: 16px;
 }
-
 .about-section p {
   color: #444;
   line-height: 1.8;
   font-size: 1rem;
 }
 
+/* ════════════════════════════════════════════════════════════
+   技术特点双栏网格
+   ════════════════════════════════════════════════════════════ */
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
 }
-
 .feature-card {
   background: #f8f9fa;
   border-radius: 8px;
   padding: 20px;
 }
-
 .feature-card h4 {
   color: #667eea;
   margin-bottom: 12px;
   font-size: 1.1rem;
 }
-
 .feature-card ul {
   list-style: none;
   padding: 0;
 }
-
 .feature-card li {
   padding: 6px 0;
   color: #555;
   position: relative;
   padding-left: 20px;
 }
-
 .feature-card li::before {
   content: '→';
   position: absolute;
@@ -188,23 +202,23 @@ h2 {
   color: #667eea;
 }
 
+/* ════════════════════════════════════════════════════════════
+   代码块（深色背景 + 绿色文字）
+   ════════════════════════════════════════════════════════════ */
 .code-block {
   background: #1a1a2e;
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
 }
-
 .code-block h4 {
   color: #94a3b8;
   margin-bottom: 12px;
   font-size: 0.9rem;
 }
-
 .code-block pre {
   margin: 0;
 }
-
 .code-block code {
   color: #4ade80;
   font-family: 'Fira Code', monospace;
@@ -212,58 +226,44 @@ h2 {
   line-height: 1.6;
 }
 
+/* ════════════════════════════════════════════════════════════
+   API 接口表格
+   请求方法带颜色标签（GET 蓝 / POST 黄 / PUT 蓝 / DELETE 红）
+   ════════════════════════════════════════════════════════════ */
 .api-table {
   overflow-x: auto;
 }
-
 table {
   width: 100%;
   border-collapse: collapse;
 }
-
 th, td {
   padding: 12px 16px;
   text-align: left;
   border-bottom: 1px solid #e0e0e0;
 }
-
 th {
   background: #f8f9fa;
   color: #1a1a2e;
   font-weight: 600;
 }
-
 td {
   color: #555;
 }
 
+/* ── HTTP 方法颜色标签 ── */
 .method {
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 0.85rem;
   font-weight: 600;
 }
+.method.get    { background: #dbeafe; color: #2563eb; }
+.method.post   { background: #fef3c7; color: #d97706; }
+.method.put    { background: #dbeafe; color: #2563eb; }
+.method.delete { background: #fce4ec; color: #dc2626; }
 
-.method.get {
-  background: #dbeafe;
-  color: #2563eb;
-}
-
-.method.post {
-  background: #fef3c7;
-  color: #d97706;
-}
-
-.method.put {
-  background: #dbeafe;
-  color: #2563eb;
-}
-
-.method.delete {
-  background: #fce4ec;
-  color: #dc2626;
-}
-
+/* ── API 路径代码样式 ── */
 td code {
   background: #f1f5f9;
   padding: 2px 6px;

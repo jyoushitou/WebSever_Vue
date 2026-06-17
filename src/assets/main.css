@@ -1,10 +1,26 @@
 /**
- * main.css — 全局样式
- * 
- * 定义全局 CSS 重置、通用颜色、字体、滚动条样式，
- * 以及 fade/slide 过渡动画和弹窗（Overlay + Modal）通用样式。
+ * ============================================================
+ *  main.css — 全局样式（CSS Reset + 通用样式 + 过渡动画）
+ * ============================================================
+ *
+ * 【包含内容】
+ *   1. CSS Reset —— box-sizing、margin/padding 清零
+ *   2. 基础标签样式 —— body 渐变背景、链接颜色、标题行高、图片自适应
+ *   3. 滚动条样式 —— WebKit 自定义宽高和颜色
+ *   4. 选中文本样式 —— 紫色背景白色文字
+ *   5. Vue 过渡动画 —— fade（淡入淡出）+ slide（滑动）class
+ *   6. 弹窗通用样式 —— overlay（遮罩）+ modal（模态框）
+ *
+ * 【说明】
+ *   弹窗样式（.overlay / .modal / .toggle-auth 等）为全局通用样式，
+ *   可在任何页面直接使用。UserNav.vue 组件使用自己的前缀类名
+ *   （usernav-*）以避免样式冲突。
+ * ============================================================
  */
 
+/* ════════════════════════════════════════════════════════════
+   1. CSS Reset — 统一的盒模型和内外边距清零
+   ════════════════════════════════════════════════════════════ */
 *,
 *::before,
 *::after {
@@ -13,6 +29,12 @@
   padding: 0;
 }
 
+/* ════════════════════════════════════════════════════════════
+   2. 基础 HTML / Body 样式
+   - 深色渐变背景（深紫 → 深蓝 → 深灰）
+   - 中英文混合字体栈
+   - 全屏最小高度 + 背景 fixed
+   ════════════════════════════════════════════════════════════ */
 html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
@@ -35,12 +57,14 @@ body {
   min-height: 100vh;
 }
 
+/* ════════════════════════════════════════════════════════════
+   通用元素样式
+   ════════════════════════════════════════════════════════════ */
 a {
   color: #667eea;
   text-decoration: none;
   transition: color 0.3s ease;
 }
-
 a:hover {
   color: #764ba2;
 }
@@ -54,62 +78,69 @@ img {
   height: auto;
 }
 
-/* 滚动条样式 */
+/* ════════════════════════════════════════════════════════════
+   3. WebKit 滚动条自定义样式
+   ════════════════════════════════════════════════════════════ */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 4px;
 }
-
 ::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 4px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
 }
 
-/* 选中文本样式 */
+/* ════════════════════════════════════════════════════════════
+   4. 选中文本样式（紫色背景 + 白色文字）
+   ════════════════════════════════════════════════════════════ */
 ::selection {
   background: #667eea;
   color: white;
 }
 
-/* 淡入淡出过渡 */
+/* ════════════════════════════════════════════════════════════
+   5. Vue 过渡动画 class
+   用法：<Transition name="fade"> 或 <Transition name="slide">
+   ════════════════════════════════════════════════════════════ */
+
+/* ── fade: 简单淡入淡出 ── */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
 }
-
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
 }
 
-/* 滑动过渡 */
+/* ── slide: 水平滑动 + 淡入淡出 ── */
 .slide-enter-active,
 .slide-leave-active {
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
-
 .slide-enter-from {
   transform: translateX(-20px);
   opacity: 0;
 }
-
 .slide-leave-to {
   transform: translateX(20px);
   opacity: 0;
 }
 
-/* ================================================================
-   弹窗通用样式
-   ================================================================ */
+/* ════════════════════════════════════════════════════════════
+   6. 弹窗通用样式（Overlay + Modal）
+   可在任意 Vue 组件中直接使用 .overlay / .modal 类名
+   注意：UserNav.vue 使用独立前缀（usernav-*）以免冲突
+   ════════════════════════════════════════════════════════════ */
+
+/* ── 遮罩层 ── */
 .overlay {
   display: none;
   position: fixed;
@@ -124,6 +155,8 @@ img {
 .overlay.show {
   display: flex;
 }
+
+/* ── 模态框 ── */
 .modal {
   background: #fff;
   border: 2px solid #000;

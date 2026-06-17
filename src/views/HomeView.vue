@@ -1,9 +1,34 @@
 /**
- * HomeView.vue — 首页
- * 
- * 展示四个板块（文章/图片/视频/博客），每个板块包含三个标签和若干图片。
- * 页面加载时显示开屏动画，内容逐渐弹出，并且支持滚动时的入场/退场动画。
- * 登录/注册弹窗集成在首页中。
+ * ============================================================
+ *  HomeView.vue — 首页（内容展示 + 开屏动画）
+ * ============================================================
+ *
+ * 【功能概述】
+ *   展示四个板块（文章/图片/视频/博客），每个板块包含若干标签行，
+ *   每行展示多张图片缩略图。页面包含丰富的入场/退场/滚动动画。
+ *
+ * 【核心特性】
+ *   1. 打字机标题 —— 首次访问时逐字打出"jyoushitou"
+ *   2. 弹出动画 —— header、板块标题、内容行、图片依次 pop-in
+ *   3. 滚动动画 —— IntersectionObserver 监听，进出视口时触发 scroll-in/out
+ *   4. 文章跳转 —— 点击"文章"板块，内容四散淡出，标题飞往左上角
+ *   5. 随机背景 —— 每次加载随机选择一张背景图
+ *   6. API 数据 —— 调用 /api/contents 获取动态数据，失败则使用保底数据
+ *
+ * 【动画流程】
+ *   onMounted → 渲染保底数据 → 弹出动画（不等 API） → 打字机效果 → 异步 API
+ *
+ * 【组件结构】
+ *   top-typing-bar ("jyoushitou")
+ *   header (UserNav 登录/注册)
+ *   main
+ *     ├── first-title (板块标题，可点击)
+ *     └── section
+ *           └── h-backgrand (标签行)
+ *                 ├── second-title (标签名)
+ *                 └── img-row
+ *                       └── img-box × N (图片缩略图)
+ * ============================================================
  */
 
 <script setup>
@@ -13,15 +38,28 @@ import UserNav from '@/components/UserNav.vue'
 
 const router = useRouter()
 
+// ════════════════════════════════════════════════════════════
+//  goToArticle(event) — 点击"文章"板块时的跳转动画
+//
+//  效果：所有内容元素从点击位置向外四散淡出（爆炸式消失），
+//        顶部的 "jyoushitou" 标题飞往左上角固定位置，
+//        然后路由跳转到 /article。
+//
+//  原理：
+//    1. 计算每个元素中心到点击位置的向量
+//    2. 按向量方向分配 30~200px 的偏移量（距离越远偏移越大）
+//    3. requestAnimationFrame 统一应用 transition + transform
+//    4. 550ms 后跳转（与 transition 时长 0.7s 配合，避免空白停顿）
+// ════════════════════════════════════════════════════════════
 function goToArticle(event) {
-  // 点击"文章"时，所有内容元素从点击位置四散淡出，"jyoushitou" 移到左上角
   const clickX = event ? event.clientX : window.innerWidth / 2
   const clickY = event ? event.clientY : window.innerHeight / 2
 
-  // 批量计算偏移，用 requestAnimationFrame 统一应用，避免卡顿
+  // 收集所有需要动画的元素
   const els = document.querySelectorAll('.header, .first-title, .section, .h-backgrand, .img-box, .second-title')
   const styles = []
 
+  // 批量计算每个元素的偏移方向 + 距离
   els.forEach(el => {
     const rect = el.getBoundingClientRect()
     const cx = rect.left + rect.width / 2
@@ -30,12 +68,13 @@ function goToArticle(event) {
     const dy = cy - clickY
     const dist = Math.sqrt(dx * dx + dy * dy)
     const angle = Math.atan2(dy, dx)
-    const drift = Math.min(dist * 0.15 + 30, 200)
+    const drift = Math.min(dist * 0.15 + 30, 200)  // 至少 30px，最多 200px
     const tx = Math.cos(angle) * drift
     const ty = Math.sin(angle) * drift
     styles.push({ el, tx, ty })
   })
 
+  // 统一应用动画（避免逐元素触发导致卡顿）
   requestAnimationFrame(() => {
     styles.forEach(({ el, tx, ty }) => {
       el.style.transition = 'all 0.7s cubic-bezier(0.5, 0, 0.75, 0)'
@@ -44,20 +83,32 @@ function goToArticle(event) {
     })
   })
 
-    // "jyoushitou" 飞到左上角
+  // "jyoushitou" 移到左上角固定位置
   const typingBar = document.querySelector('.top-typing-bar')
   if (typingBar) {
     typingBar.classList.add('fly-corner')
   }
-    // 淡出接近完成时跳转，减少空白停顿
+
+  // 淡出动画接近完成时跳转
   setTimeout(() => router.push('/article'), 550)
 }
 
-// ✨ 顶部打字动画状态
+// ════════════════════════════════════════════════════════════
+//  顶部打字机动画状态
+//  首次访问时逐字打出 "jyoushitou"，非首次直接显示完整文字
+//  使用 sessionStorage 标记是否已看过动画
+// ════════════════════════════════════════════════════════════
 const typedText = ref('')
 const showCursor = ref(true)
 const fullText = 'jyoushitou'
 // ─── 页面数据（
+// ════════════════════════════════════════════════════════════
+//  页面数据（保底数据）
+//  四个板块：文章 / 图片 / 视频 / 博客
+//  每个板块包含多个标签行（rows），每行有标签名 + 图片列表
+//  图片列表为空时该行不渲染（见模板 v-if="row.imgs.length > 0"）
+//  API 请求成功后会被响应数据替换
+// ════════════════════════════════════════════════════════════
 const sectionsData = ref([
   { title: '文章', rows: [
     { label: '穿越', imgs: ['/image/129442526_p0.png','/image/88515515_p0.png','/image/129442526_p0.png','/image/88515515_p0.png','/image/129442526_p0.png','/image/88515515_p0.png'] },
@@ -82,6 +133,16 @@ const sectionsData = ref([
   ]}
 ])
 
+/**
+ * fetchContents() — 从后端 API 获取内容数据
+ *
+ * 调用：GET /api/contents
+ * 成功时（code === 200）替换 sectionsData 为服务器数据
+ * 失败时保留保底数据（不抛出错误）
+ *
+ * 注意：无论成功还是失败，最后都通过展开运算符触发响应式更新，
+ *       保证 Vue 重新渲染 DOM 以绑定动画 class。
+ */
 async function fetchContents() {
   try {
     const res = await fetch('/api/contents')
@@ -92,30 +153,44 @@ async function fetchContents() {
   } catch (e) {
     console.error('获取内容列表失败，使用默认数据:', e)
   }
-  // 无论 API 成功还是失败，都触发动画
+  // 强制触发响应式更新（创建新数组引用），确保 DOM 重新渲染
   sectionsData.value = [...sectionsData.value]
 }
 
+// ── IntersectionObserver 实例，用于滚动动画 ──
 let observer = null
 
+/**
+ * runContentAnimations() — 执行页面入场弹出动画
+ *
+ * 动画顺序（使用 setTimeout 链控制）：
+ *   1. header (UserNav)        — 50ms   弹出
+ *   2. first-title (板块标题)   — 200ms  起依次弹出（间隔 150ms）
+ *   3. section (内容区)         — 与标题同步弹出
+ *   4. h-backgrand (标签行)     — 500ms  起依次弹出
+ *   5. img-box (图片缩略图)     — 每行内图片间隔 60ms 依次弹出
+ *   6. 全部完成后启动 IntersectionObserver（滚动动画）
+ *
+ * 若 DOM 尚未渲染，递归用 requestAnimationFrame 重试。
+ */
 function runContentAnimations() {
   const allBgs = document.querySelectorAll('.h-backgrand')
   if (allBgs.length === 0) {
-    // DOM 还没渲染好，重试
+    // DOM 还没渲染好，下一帧重试
     requestAnimationFrame(() => runContentAnimations())
     return
   }
 
-    // 主内容默认已显示，开始弹出内容动画
   const header = document.querySelector('.header')
   const firstTitles = document.querySelectorAll('.first-title')
   const sectionEls = document.querySelectorAll('.section')
 
-  // 弹出 header（登录/注册）
+  // ── 弹出 header ──
   if (header) {
     setTimeout(() => header.classList.add('pop-in'), 50)
   }
-  // 依次弹出板块标题
+
+  // ── 依次弹出板块标题 + section ──
   for (let ti = 0; ti < firstTitles.length; ti++) {
     setTimeout(() => {
       firstTitles[ti].classList.add('pop-in')
@@ -123,15 +198,18 @@ function runContentAnimations() {
     }, 200 + ti * 150)
   }
 
+  // ── 计算最大行数（用于后续循环） ──
   let maxRows = 0
   for (let si = 0; si < sectionEls.length; si++) {
     const rc = sectionEls[si].querySelectorAll('.h-backgrand').length
     if (rc > maxRows) maxRows = rc
   }
 
+  // ── 逐行弹出 h-backgrand 及其内部的 img-box ──
   let delay = 500
   for (let rj = 0; rj < maxRows; rj++) {
     const rowIdx = rj
+    // 弹出当前行的 h-backgrand
     setTimeout(() => {
       for (let siA = 0; siA < sectionEls.length; siA++) {
         const bgsA = sectionEls[siA].querySelectorAll('.h-backgrand')
@@ -139,6 +217,7 @@ function runContentAnimations() {
       }
     }, delay)
 
+    // 计算当前行中最多图片数
     let maxImg = 0
     for (let si2 = 0; si2 < sectionEls.length; si2++) {
       const bgs2 = sectionEls[si2].querySelectorAll('.h-backgrand')
@@ -147,6 +226,8 @@ function runContentAnimations() {
         if (ic > maxImg) maxImg = ic
       }
     }
+
+    // 逐张弹出图片（每张间隔 60ms）
     for (let bj = 0; bj < maxImg; bj++) {
       setTimeout(() => {
         for (let si3 = 0; si3 < sectionEls.length; si3++) {
@@ -161,11 +242,21 @@ function runContentAnimations() {
     delay += maxImg * 60 + 40
   }
 
+  // 入场动画全部完成后启动 IntersectionObserver（滚动动画）
   setTimeout(() => {
     startObserver(allBgs)
   }, delay + 400)
 }
 
+/**
+ * startObserver(allBgs) — 启动 IntersectionObserver 滚动动画
+ *
+ * 监听所有 .h-backgrand 元素：
+ *   - 进入视口 (isIntersecting) → 添加 scroll-in class（放大淡入）
+ *   - 离开视口 → 添加 scroll-out class（缩小淡出）
+ *
+ * threshold: 0.1 — 元素 10% 进入视口即触发
+ */
 function startObserver(allBgs) {
   observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -182,11 +273,22 @@ function startObserver(allBgs) {
   allBgs.forEach(bg => observer.observe(bg))
 }
 
-// 监听 sectionsData 变化（API 数据回来后更新内容，不再触发弹出动画）
+// ── watch: 数据变化时不做额外动画（Vue 自动响应式更新 DOM） ──
 watch(sectionsData, () => {})
 
+/**
+ * onMounted — 页面加载初始化
+ *
+ * 【执行流程】
+ *   1. 随机选择背景图 → 设置 body 背景
+ *   2. 发起异步 API 请求（不 await，不阻塞）
+ *   3. nextTick 等待保底数据渲染到 DOM
+ *   4. 立即播放入场弹出动画（使用保底数据）
+ *   5. 打字机效果（首次访问逐字打出，非首次直接显示）
+ *   6. 等待 API 数据完成（自动响应式更新 DOM，不影响已有动画）
+ */
 onMounted(async () => {
-  // 先统一加载背景
+  // ── 1. 随机背景图 ──
   const bgList = [
     'url("/image/129442526_p0.png")',
     'url("/image/88515515_p0.png")'
@@ -195,19 +297,19 @@ onMounted(async () => {
   const hp = document.querySelector('.home-page')
   if (hp) hp.style.backgroundImage = bg
 
-  // 先异步加载数据（不 await，不阻塞后续）
+  // ── 2. 异步获取数据（不 await，不阻塞后续动画） ──
   const fetchPromise = fetchContents()
 
-  // 等待 Vue 渲染保底数据到 DOM
+  // ── 3. 等待 Vue 渲染保底数据到 DOM ──
   await nextTick()
 
-  // ★ 立即播放入场动画（用保底数据），不等 API
+  // ── 4. ★ 立即播放入场动画（用保底数据），不等 API ──
   runContentAnimations()
 
-  // 判断是否首次访问（打字机效果只在新打开页面时显示）
+  // ── 5. 打字机效果 ──
   const hasTyped = sessionStorage.getItem('jyoushitou_typed')
   if (!hasTyped) {
-    // 打字机效果
+    // 首次访问：逐字打印
     for (let i = 0; i < fullText.length; i++) {
       await new Promise(resolve => setTimeout(resolve, 80))
       typedText.value += fullText[i]
@@ -220,47 +322,80 @@ onMounted(async () => {
     showCursor.value = false
   }
 
-  // 等待数据加载完成（如果有新数据，Vue 自动响应式更新）
+  // ── 6. 等待数据加载完成（如果有新数据，Vue 自动响应式更新） ──
   await fetchPromise
 })
 
-onBeforeUnmount(() => {
-  if (observer) observer.disconnect()
-})
-
+/**
+ * onBeforeUnmount — 组件卸载前清理
+ * 断开 IntersectionObserver，防止内存泄漏
+ */
 onBeforeUnmount(() => {
   if (observer) observer.disconnect()
 })
 </script>
 
 <template>
-    <div class="home-page index-body">
-    <!-- 主内容区 -->
+        <div class="home-page index-body">
     <div class="main-content" id="mainContent">
-                  <!-- 顶部打字标题栏 -->
-                  <div class="top-typing-bar">
-                    <span class="typing-text">{{ typedText }}</span>
-                    <span v-if="showCursor" class="typing-cursor">|</span>
-                  </div>
 
-                  <header class="header">
+      <!-- ════════════════════════════════════════════════════
+           顶部打字标题栏 "jyoushitou"
+           - 固定定位，初始居中（大型楷体）
+           - 点击"文章"跳转时添加 fly-corner 飞到左上角
+           - 打字光标闪烁动画
+           ════════════════════════════════════════════════════ -->
+      <div class="top-typing-bar">
+        <span class="typing-text">{{ typedText }}</span>
+        <span v-if="showCursor" class="typing-cursor">|</span>
+      </div>
+
+      <!-- ── header: 用户登录/注册组件 ── -->
+      <header class="header">
         <UserNav />
       </header>
 
+      <!-- ── 主体内容：四个板块（文章/图片/视频/博客） ── -->
       <main>
         <template v-for="(sec, si) in sectionsData" :key="si">
-                    <h2 class="first-title" :class="{ clickable: sec.title === '文章' }" @click="sec.title === '文章' && goToArticle($event)">{{ sec.title }}</h2>
+          <!-- 板块标题（仅"文章"可点击，触发四散跳转动画） -->
+          <h2
+            class="first-title"
+            :class="{ clickable: sec.title === '文章' }"
+            @click="sec.title === '文章' && goToArticle($event)"
+          >{{ sec.title }}</h2>
+
           <section class="section">
-                        <template v-for="(row, ri) in sec.rows" :key="ri">
-                          <div v-if="row.imgs && row.imgs.length > 0" class="h-backgrand" :class="{ clickable: sec.title === '文章' }" @click="sec.title === '文章' && goToArticle($event)">
-                            <div class="second-title" :class="{ clickable: sec.title === '文章' }" @click.stop="sec.title === '文章' && goToArticle($event)">{{ row.label }}</div>
-                            <div class="content-col">
-                              <div class="img-row">
-                                <div v-for="(img, bi) in row.imgs.slice(0, 10)" :key="bi" class="img-box" :class="{ clickable: sec.title === '文章' }" @click.stop="sec.title === '文章' && goToArticle($event)"><img :src="img" alt="" /></div>
-                              </div>
-                            </div>
-                          </div>
-                        </template>
+            <!-- 标签行循环 -->
+            <template v-for="(row, ri) in sec.rows" :key="ri">
+              <!-- 无图片的行不渲染 -->
+              <div
+                v-if="row.imgs && row.imgs.length > 0"
+                class="h-backgrand"
+                :class="{ clickable: sec.title === '文章' }"
+                @click="sec.title === '文章' && goToArticle($event)"
+              >
+                <!-- 标签名 -->
+                <div
+                  class="second-title"
+                  :class="{ clickable: sec.title === '文章' }"
+                  @click.stop="sec.title === '文章' && goToArticle($event)"
+                >{{ row.label }}</div>
+
+                <!-- 图片行（水平滚动） -->
+                <div class="content-col">
+                  <div class="img-row">
+                    <div
+                      v-for="(img, bi) in row.imgs.slice(0, 10)"
+                      :key="bi"
+                      class="img-box"
+                      :class="{ clickable: sec.title === '文章' }"
+                      @click.stop="sec.title === '文章' && goToArticle($event)"
+                    ><img :src="img" alt="" /></div>
+                  </div>
+                </div>
+              </div>
+            </template>
           </section>
         </template>
       </main>
@@ -269,7 +404,9 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
-/* home-page 背景 */
+/* ════════════════════════════════════════════════════════════
+   首页容器：全屏深色背景覆盖，fixed 背景图
+   ════════════════════════════════════════════════════════════ */
 .home-page {
   min-height: 100vh;
   background-size: cover;
@@ -278,7 +415,10 @@ onBeforeUnmount(() => {
   background-attachment: fixed;
 }
 
-/* header */
+/* ════════════════════════════════════════════════════════════
+   Header — 右上角用户组件
+   初始隐藏（opacity:0 + translateY），添加 pop-in class 后弹出
+   ════════════════════════════════════════════════════════════ */
 .index-body .header {
   display: flex;
   justify-content: flex-end;
@@ -291,6 +431,11 @@ onBeforeUnmount(() => {
               transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .index-body .header.pop-in { opacity: 1; transform: translateY(0) scale(1); }
+
+/* ════════════════════════════════════════════════════════════
+   板块标题 — 居中大字，带弹出动画
+   clickable 类仅在"文章"板块生效（可点击跳转）
+   ════════════════════════════════════════════════════════════ */
 .first-title {
   text-align: center;
   padding: 28px 0 12px 0;
@@ -306,6 +451,8 @@ onBeforeUnmount(() => {
 .first-title.pop-in { opacity: 1; transform: translateY(0) scale(1); }
 .first-title.clickable { cursor: pointer; transition: all 0.3s ease; }
 .first-title.clickable:hover { text-shadow: 0 0 20px rgba(255,255,255,0.6); transform: scale(1.05); }
+
+/* ── 可点击元素的 hover 反馈 ── */
 .h-backgrand.clickable { cursor: pointer; transition: all 0.3s ease; }
 .h-backgrand.clickable:hover { background: rgba(255,255,255,0.55); }
 .second-title.clickable { cursor: pointer; transition: all 0.3s ease; }
@@ -313,7 +460,10 @@ onBeforeUnmount(() => {
 .img-box.clickable { cursor: pointer; transition: all 0.3s ease; }
 .img-box.clickable:hover { transform: scale(1.08); box-shadow: 0 0 15px rgba(255,255,255,0.4); }
 
-/* section */
+/* ════════════════════════════════════════════════════════════
+   Section — 板块内容容器
+   使用 flex column 排列各标签行
+   ════════════════════════════════════════════════════════════ */
 .section {
   margin-bottom: 12px;
   display: flex;
@@ -325,7 +475,12 @@ onBeforeUnmount(() => {
 }
 .section.pop-in { opacity: 1; transform: translateY(0); }
 
-/* h-backgrand */
+/* ════════════════════════════════════════════════════════════
+   h-backgrand — 单个标签行
+   - 半透明白色背景
+   - 左右各拉宽 4cm（负 margin-left 实现视觉延展）
+   - 支持三种动画状态：pop-in(入场) / scroll-in(进入视口) / scroll-out(离开视口)
+   ════════════════════════════════════════════════════════════ */
 .h-backgrand {
   display: flex;
   align-items: center;
@@ -354,7 +509,10 @@ onBeforeUnmount(() => {
   transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
-/* second-title */
+/* ════════════════════════════════════════════════════════════
+   标签行内元素
+   second-title（标签名） + content-col（图片容器）
+   ════════════════════════════════════════════════════════════ */
 .second-title {
   min-width: 60px;
   padding: 8px 12px;
@@ -373,7 +531,10 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-/* img-row */
+/* ════════════════════════════════════════════════════════════
+   img-row — 图片水平滚动行
+   img-box — 16:10 缩略图卡片，带弹出动画
+   ════════════════════════════════════════════════════════════ */
 .img-row {
   display: flex;
   gap: 10px;
@@ -407,7 +568,12 @@ onBeforeUnmount(() => {
 }
 .img-box.pop-in { opacity: 1; transform: translateY(0) scale(1); }
 
-/* 顶部打字标题栏 — 固定定位，初始居中，跳转时移到左上角 */
+/* ════════════════════════════════════════════════════════════
+   顶部打字标题栏 "jyoushitou"
+   - 固定定位，初始居中（大型楷体，3rem）
+   - fly-corner：点击文章跳转时飞到左上角（1.1rem）
+   - 光标闪烁动画
+   ════════════════════════════════════════════════════════════ */
 .top-typing-bar {
   position: fixed;
   top: 30px;
@@ -443,7 +609,10 @@ onBeforeUnmount(() => {
 }
 .main-content { display: block; }
 
-/* 响应式 */
+/* ════════════════════════════════════════════════════════════
+   响应式 (max-width: 767px)
+   缩小字号、间距、图片尺寸
+   ════════════════════════════════════════════════════════════ */
 @media (max-width: 767px) {
   .index-body { padding: 10px; }
   .index-body .auth-buttons .auth-btn { padding: 6px 22px; font-size: 0.95rem; }
