@@ -28,7 +28,7 @@ export default defineConfig({
     proxy: {
       // API 代理：前端发往 /api/* 的请求转发到后端 C++ 服务器
       '/api': {
-        target: 'http://localhost:60906',  // 后端服务器地址
+        target: 'http://10.9.6.28:60906',  // 后端服务器地址
         changeOrigin: true                 // 修改请求来源头，避免跨域问题
       }
     }
